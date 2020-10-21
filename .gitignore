@@ -1,1 +1,6 @@
 data_set/
+data/archive
+.vscode
+__*
+.ip*
+cache.sqlite
