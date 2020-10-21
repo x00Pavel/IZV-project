@@ -3,13 +3,26 @@ import requests
 import requests_cache
 from bs4 import BeautifulSoup as bs, element
 from re import compile
-from os import mkdir, listdir
+from os import mkdir, listdir, remove
+import gzip
+from  zipfile import ZipFile as zf
+from io import TextIOWrapper
+from csv import DictReader
+import numpy as np
+
+class YearStat:
+    def __init__(self, region, crash_count, year):
+        self.region = region
+        self.crash_count = crash_count
+        self.year = year
+
 
 class DataDownloader():
 
     url = ""
     folder = ""
     cache_filename = ""
+    cache = []
 
     def __init__(self, url="https://ehw.fit.vutbr.cz/izv/", folder="data", cache_filename="data_{}.pkl.gz"):
         self.url = url
@@ -19,7 +32,6 @@ class DataDownloader():
     def get_links(self, response):
         soup = bs(response, "html.parser")
         data = soup.find_all("a", class_="btn-primary")
-        print(data)
         return [entry["href"] for entry in data]
 
     def download_data(self):
@@ -44,27 +56,43 @@ class DataDownloader():
         # Create data containing folder
         if self.folder not in listdir():
             mkdir(self.folder)
-        
-        # Create folder for .zip archives
-        if f"{self.folder}/archive" not in listdir(f"./{self.folder}"):
-            mkdir(f"{self.folder}/archive"
-            )
-            
+
         for link in links:
             file_name = link.split('/')[1]
-            if file_name not in listdir(f"./{self.folder}/archive"):
+            if file_name not in listdir(f"./{self.folder}"):
                 # Download current file if it is not presents in archive folder
-                with open(f"{self.folder}/archive/{file_name}", "wb") as f:
-                    with requests.get(f"{self.url}{link}", stream=True) as r:
-                        for chunk in r.iter_content(chunk_size=128, decode_unicode=True):
-                            f.write(chunk)
+                try:
+                    with open(f"./{self.folder}/{file_name}", "wb") as f:
+                        with requests.get(f"{self.url}{link}", stream=True) as r:
+                            for chunk in r.iter_content(chunk_size=128, decode_unicode=True):
+                                f.write(chunk)
+                except OSError:
+                    # This can sometimes happen and error in SSL module for python > 3.7
+                    pass
+            
+            with zf(f"{self.folder}/{file_name}", "r") as zip_ref:
+                for file in zip_ref.namelist():
+                    with zip_ref.open(file, "r") as zip_f:
+                        lines = TextIOWrapper(zip_f, encoding = "ISO-8859-1")
+                        with open(f"{self.folder}/{file}", "a+") as f:
+                            for line in DictReader(lines):
+                                f.write(";".join([ str(item) for item in line.values()]) + "\n")
+            remove(f"{self.folder}/{file_name}")
 
-    def parse_region_data(self, region):
-        pass
+    def parse_region_data(self, region) -> ([], np.array):
+        for reg in region if region is not None else [REGIONS.keys()]:
+            if REGIONS[reg][0] not in listdir(f"{self.folder}"):
+                self.download_data()
+            
+        return ([], np.array)
+        
 
     def get_list(self, regions = None):
-        pass
+        for region in regions if regions is not None else REGIONS.keys():
+            if self.cache_filename.format(region) not in listdir(self.folder):
+                pass
 
 if __name__ == "__main__":
     requests_cache.install_cache('cache') 
-    data = DataDownloader().download_data()
+    print("CACHE IS ON")
+    DataDownloader().download_data()
