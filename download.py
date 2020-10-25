@@ -32,7 +32,7 @@ class DataDownloader():
     url = ""
     folder = ""
     cache_filename = ""
-    cache = {}
+    cache = []
     # crash_dtype = np.dtype([("region", np.unicode_, 3),("year",np.uint16,1), ("month",np.uint8,1), ("day",np.uint8,1), ("hours",np.int8,1), ("minutes",np.int8,1)])
     file_to_reg = {
         "00.csv": "PHA",
@@ -112,39 +112,79 @@ class DataDownloader():
                     # This can sometimes happen and error in SSL module for python > 3.7
                     pass
             archive = zf(f"{self.folder}/{archive_name}")
-            # with zf(f"{self.folder}/{archive_name}", "r") as archive:
             
             for file in archive.namelist():
                 if file in self.file_to_reg.keys():
                     reg = self.file_to_reg[file]
-                    if reg not in self.cache.keys():
-                        self.cache[reg] = np.genfromtxt(archive.open(file), 
+                    values = np.genfromtxt(archive.open(file), 
                                                         delimiter=";", 
                                                         encoding="ISO-8859-1", 
                                                         dtype="unicode", 
                                                         autostrip=True, 
-                                                        usecols=(0,1,2,3))
-                    else:
-                        np.concatenate([self.cache[reg], np.genfromtxt(archive.open(file), 
-                                                                       delimiter=";", 
-                                                                       encoding="ISO-8859-1", 
-                                                                       dtype="unicode", 
-                                                                       autostrip=True, 
-                                                                       usecols=(0,1,2,3))])
-        for reg, values in self.cache.items():
-            self.cache[reg] = np.transpose(values)
-            self.cache[reg][0] = self.cache[reg][0].astype("unicode")
+                                                        usecols=(0,1,2,3),
+                                                        missing_values=["n.a.","?","NA","n/a", "na", "--", None],
+                                                        filling_values="-1"
+                                                        )
+                    values = np.insert(values, 0, reg, axis=1)
+                    self.cache.append(values)
+                    
+                    # if reg not in self.cache.keys():
+                    #     self.cache[reg] = np.genfromtxt(archive.open(file), 
+                    #                                     delimiter=";", 
+                    #                                     encoding="ISO-8859-1", 
+                    #                                     dtype="unicode", 
+                    #                                     autostrip=True, 
+                    #                                     usecols=(0,1,2,3),
+                    #                                     missing_values=["n.a.","?","NA","n/a", "na", "--", None],
+                    #                                     filling_values="-1"
+                    #                                     )
+                    # else:
+                    #     np.concatenate([self.cache[reg], np.genfromtxt(archive.open(file), 
+                    #                                                    delimiter=";", 
+                    #                                                    encoding="ISO-8859-1", 
+                    #                                                    dtype="unicode", 
+                    #                                                    autostrip=True, 
+                    #                                                    usecols=(0,1,2,3),
+                    #                                                    missing_values=["n.a.","?","NA","n/a", "na", "--", None,''],
+                    #                                                    filling_values="-1"
+                    #                                                    )
+                    #                                                    ])
+        # print(self.cache["PHA"])
+        # print(type(self.cache["PHA"][0,2]))
+        np.concatenate(self.cache)
+        print(self.cache)
+        # self.cache = np.char.replace(values, '"', '')
+        # self.cache[values == ''] = "-1"
+        a = np.transpose(self.cache)
+
+        a[2] = a[2].astype(np.int8)
+        # print(a)
+        print(a[2])
+        # for values in self.cache:
+            # values = np.char.replace(values, '"', '')
+            # values[values == ''] = -1
+            # print(values)
+            # print(values)
+            # # print(values)
+            # values = np.transpose(values)
+            # # print(self.cache[reg])
+            # values[0] = values[0].astype("unicode")
+
+            # a = values[1].astype('i1')
+            # print(a)
+            # values[1] = a
+            # print(values[1])
+            # print(values[1].astype(np.int8))
+            # print(np.array(values[1], dtype=np.int8))
+            # print(np.array(values[1], dtype=np.int8).dtype)
+
+            # self.cache[reg][2] = self.cache[reg][2].astype(np.int8).astype(np.int8)
+            # self.cache[reg][3] = self.cache[reg][3].astype(np.datetime64)
+            # self.cache[reg][4] = self.cache[reg][4].astype("unicode")
+            # self.cache[reg][5] = self.cache[reg][5].astype("unicode")
         # print(self.cache["HKK"])
-        print(self.cache["HKK"][0])
-            #     with archive.open(file, "r") as zip_f:
-            #             lines = TextIOWrapper(zip_f, encoding = "ISO-8859-1")
-            #             try:
-            #                 with open(f"{self.folder}/{self.file_to_reg[file]}.csv", "a+") as f:
-            #                     for line in DictReader(lines):
-            #                         f.write(";".join([ str(item) for item in line.values()]) + "\n")
-            #             except KeyError:
-            #                 continue
-            # remove(f"{self.folder}/{archive_name}")
+        # print(self.cache["HKK"][2])
+
 
     def parse_region_data(self, region) -> ([], np.ndarray):
         columns = ["region", "year", "month", "day", "hours", "minutes"]
