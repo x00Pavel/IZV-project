@@ -4,11 +4,13 @@ import requests_cache
 from bs4 import BeautifulSoup as bs, element
 from re import compile
 from os import mkdir, listdir, remove
-import gzip
 from  zipfile import ZipFile as zf
 from io import TextIOWrapper
 from csv import DictReader
 import numpy as np
+from glob import glob
+from pprint import pprint as pp
+import pickle
 
 class YearStat:
     def __init__(self, region, crash_count, year):
@@ -22,7 +24,25 @@ class DataDownloader():
     url = ""
     folder = ""
     cache_filename = ""
-    cache = []
+    output = None
+    cache = {}
+    file_to_reg = {
+        "00.csv": "PHA",
+        "01.csv": "STC",
+        "02.csv": "JHC",
+        "03.csv": "PLK",
+        "19.csv": "KVK",
+        "04.csv": "ULK",
+        "18.csv": "LBK",
+        "05.csv": "HKK",
+        "17.csv": "PAK",
+        "14.csv": "OLK",
+        "07.csv": "MSK",
+        "06.csv": "JHM",
+        "15.csv": "ZLK",
+        "16.csv": "VYS",
+        # "CHODCI.csv": "CHODCI"
+    }
 
     def __init__(self, url="https://ehw.fit.vutbr.cz/izv/", folder="data", cache_filename="data_{}.pkl.gz"):
         self.url = url
@@ -31,10 +51,22 @@ class DataDownloader():
 
     def get_links(self, response):
         soup = bs(response, "html.parser")
-        data = soup.find_all("a", class_="btn-primary")
-        return [entry["href"] for entry in data]
-
-    def download_data(self):
+        data = soup.find_all("td", class_="text-center", text=compile(r"Prosinec \d{4}"))
+        links = []
+        for entry in data:
+            tr = entry.parent
+            # Find last link for each year
+            while True:
+                try:
+                    a = tr.findChildren("a", class_="btn-primary")[0]
+                    links.append(a["href"])
+                    break
+                except IndexError:
+                    tr = tr.previous_sibling
+                    continue
+        return links
+    
+    def download_data(self, regions = None):
         s = requests.session()
         header = {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
                     "Accept-Encoding": "gzip, deflate, br",
@@ -58,41 +90,150 @@ class DataDownloader():
             mkdir(self.folder)
 
         for link in links:
-            file_name = link.split('/')[1]
-            if file_name not in listdir(f"./{self.folder}"):
+            archive_name = link.split('/')[1]
+            if archive_name not in listdir(f"./{self.folder}"):
                 # Download current file if it is not presents in archive folder
                 try:
-                    with open(f"./{self.folder}/{file_name}", "wb") as f:
+                    with open(f"./{self.folder}/{archive_name}", "wb") as f:
                         with requests.get(f"{self.url}{link}", stream=True) as r:
                             for chunk in r.iter_content(chunk_size=128, decode_unicode=True):
                                 f.write(chunk)
+
                 except OSError:
                     # This can sometimes happen and error in SSL module for python > 3.7
                     pass
-            
-            with zf(f"{self.folder}/{file_name}", "r") as zip_ref:
-                for file in zip_ref.namelist():
-                    with zip_ref.open(file, "r") as zip_f:
-                        lines = TextIOWrapper(zip_f, encoding = "ISO-8859-1")
-                        with open(f"{self.folder}/{file}", "a+") as f:
-                            for line in DictReader(lines):
-                                f.write(";".join([ str(item) for item in line.values()]) + "\n")
-            remove(f"{self.folder}/{file_name}")
 
-    def parse_region_data(self, region) -> ([], np.array):
-        for reg in region if region is not None else [REGIONS.keys()]:
-            if REGIONS[reg][0] not in listdir(f"{self.folder}"):
-                self.download_data()
-            
-        return ([], np.array)
+        archives = glob(f"{self.folder}/*zip")
+        if not regions:
+            regions = self.file_to_reg.values()
+        else:
+            regions = [REGIONS[reg][0] for reg in regions]
+        result = None
+        for archive in archives:
+            print(f"Archive is open: {archive}")
+            zip_archive = zf(archive)
+            for file in zip_archive.namelist():
+                if file in regions:
+                    print(f"File is open: {file}")
+                    region = self.file_to_reg[file]
+                    values = np.genfromtxt(zip_archive.open(file), delimiter=";", 
+                                                    encoding="ISO-8859-1", 
+                                                    dtype="unicode", 
+                                                    autostrip=True,
+                                                    missing_values="XX",
+                                                    filling_values="-1",
+                                                    usecols=(np.arange(1,45)),
+                                                    )
+                    if result is None:
+                        result = np.insert(values, 0, region, axis=1)
+                    else:
+                        result = np.concatenate((result, np.insert(values, 0, region, axis=1)))
+        
+        print("Start processing dataset")
+        result[result == ''] = -1
+        result = list(np.transpose(result))
+        for index, arr in enumerate(result):
+            result[index] = np.char.replace(arr, '"', '')
+            # print(index, self.output[index])
+
+        result[0]  = result[0].astype("U3")
+        result[1]  = result[1].astype(np.int8)
+        result[2]  = result[2].astype(np.int8)
+        result[3]  = result[3].astype(np.datetime64)
+        result[4]  = result[4].astype(np.int8)
+        result[5]  = result[5].astype("U4")
+        result[6]  = result[6].astype(np.int8)
+        result[7]  = result[7].astype(np.int8)
+        result[8]  = result[8].astype(np.int8)
+        result[9]  = result[9].astype(np.int8)
+        result[10] = result[10].astype(np.int8)
+        result[11] = result[11].astype(np.int8)
+        result[12] = result[12].astype(np.int16)
+        result[13] = result[13].astype(np.int8)
+        result[14] = result[14].astype(np.int8)
+        result[15] = result[15].astype(np.int8)
+        result[16] = result[16].astype(np.int16)
+        result[17] = result[17].astype(np.int8)
+        result[18] = result[18].astype(np.int8)
+        result[19] = result[19].astype("U2")
+        result[20] = result[20].astype(np.int8)
+        result[21] = result[21].astype(np.int8)
+        result[22] = result[22].astype(np.int8)
+        result[23] = result[23].astype(np.int8)
+        result[24] = result[24].astype(np.int8)
+        result[25] = result[25].astype(np.int8)
+        result[26] = result[26].astype(np.int8)
+        result[27] = result[27].astype("U2")
+        result[28] = result[28].astype(np.int8)
+        result[29] = result[29].astype(np.int8)
+        result[30] = result[30].astype(np.int8)
+        result[31] = result[31].astype(np.int8)
+        result[32] = result[32].astype(np.int8)
+        result[33] = result[33].astype(np.int8)
+        result[34] = result[34].astype("U2")
+        result[35] = result[35].astype(np.int8)
+        result[36] = result[36].astype(np.int8)
+        result[37] = result[37].astype(np.int8)
+        result[38] = result[38].astype(np.int8)
+        result[39] = result[39].astype(np.int8)
+        result[40] = result[40].astype(np.int8)
+        result[41] = result[41].astype(np.int16)
+        result[42] = result[42].astype(np.int8)
+        result[43] = result[43].astype(np.int8)
+        result[44] = result[44].astype(np.int8)
+
+        if self.output is None:
+            self.output = result
+        else:
+            for index in range(0,45):
+                self.output[index] = np.concatenate((self.output[index], result[index]))
+        
+        print("Dataset processing finished")
+
+    def parse_region_data(self, region = "PHA") -> ([], np.array):
+        if self.folder not in listdir():
+            mkdir(self.folder)
+        if self.cache_filename.format(region) not in listdir(self.folder):
+            self.download_data([region])
+        
+        indexes = np.where(self.output[0] == region)
+        a = [np.take(self.output[i], indexes)[0] for i in range(len(self.output))]
+        # print(a)
+        return (["region", "", "", "date", "weekday", "time"], a)
         
 
     def get_list(self, regions = None):
+        columns = []
+        values = []
+        stats = None
         for region in regions if regions is not None else REGIONS.keys():
-            if self.cache_filename.format(region) not in listdir(self.folder):
-                pass
+            if region in self.cache.keys():
+                stats = self.cache[region]
+                print("In cache")
+            elif self.cache_filename.format(region) in listdir(self.folder):
+                with open(f'{self.folder}/{self.cache_filename.format(region)}','rb') as f:
+                    stats = pickle.load(f)
+                print('In FILES')
+            else:
+                stats = self.parse_region_data(region)
+                with open(f"{self.folder}/{self.cache_filename.format(region)}",'wb') as f:
+                    pickle.dump(stats, f)
+                self.cache[region] = stats
+            
+            columns = stats[0]
+            tmp = stats[1]
+            if values == []:
+                values = tmp
+            else:
+                for i in range(0,45):
+                    values[i] = np.concatenate((values[i], tmp[i])) 
+                
+        # print(values)
+        # print(type(values))
+        return (columns, values)
+
 
 if __name__ == "__main__":
     requests_cache.install_cache('cache') 
     print("CACHE IS ON")
-    DataDownloader().download_data()
+    DataDownloader().get_list(["PHA", "JHC", "STC"])
