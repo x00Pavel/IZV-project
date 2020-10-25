@@ -26,6 +26,16 @@ class DataDownloader():
     cache_filename = ""
     output = None
     cache = {}
+    columns = ["REGION", "DRUH POZEMNÍ KOMUNIKACE", "ČÍSLO POZEMNÍ KOMUNIKACE", "den, měsíc, rok", "DEN V TYDNU", "CAS", 
+               "DRUH NEHODY", "DRUH SRÁŽKY JEDOUCÍCH VOZIDEL", "DRUH PEVNÉ PŘEKÁŽKY", "CHARAKTER NEHODY", "ZAVINĚNÍ NEHODY", 
+               "ALKOHOL U VINÍKA NEHODY PŘÍTOMEN", "HLAVNÍ PŘÍČINY NEHODY", "usmrceno osob", "těžce zraněno osob", "lehce zraněno osob", 
+               "CELKOVÁ HMOTNÁ ŠKODA", "DRUH POVRCHU VOZOVKY", "STAV POVRCHU VOZOVKY V DOBĚ NEHODY", "STAV KOMUNIKACE", 
+               "POVĚTRNOSTNÍ PODMÍNKY V DOBĚ NEHODY", "VIDITELNOST", "ROZHLEDOVÉ POMĚRY", "DĚLENÍ KOMUNIKACE", 
+               "SITUOVÁNÍ NEHODY NA KOMUNIKACI", "ŘÍZENÍ PROVOZU V DOBĚ NEHODY", "MÍSTNÍ ÚPRAVA PŘEDNOSTI V JÍZDĚ", 
+               "SPECIFICKÁ MÍSTA A OBJEKTY V MÍSTĚ NEHODY", "SMĚROVÉ POMĚRY", "POČET ZÚČASTNĚNÝCH VOZIDEL", "MÍSTO DOPRAVNÍ NEHODY", 
+               "DRUH KŘIŽUJÍCÍ KOMUNIKACE", "DRUH VOZIDLA", "VÝROBNÍ ZNAČKA MOTOROVÉHO VOZIDLA", "ROK VÝROBY VOZIDLA", 
+               "CHARAKTERISTIKA VOZIDLA", "SMYK", "VOZIDLO PO NEHODĚ", "ÚNIK PROVOZNÍCH, PŘEPRAVOVANÝCH HMOT", 
+               "ZPŮSOB VYPROŠTĚNÍ OSOB Z VOZIDLA", "SMĚR JÍZDY NEBO POSTAVENÍ VOZIDLA", "ŠKODA NA VOZIDLE", "KATEGORIE ŘIDIČE", "STAV ŘIDIČE", "VNĚJŠÍ OVLIVNĚNÍ ŘIDIČE"]
     file_to_reg = {
         "00.csv": "PHA",
         "01.csv": "STC",
@@ -172,7 +182,7 @@ class DataDownloader():
         result[33] = result[33].astype(np.int8)
         result[34] = result[34].astype("U2")
         result[35] = result[35].astype(np.int8)
-        result[36] = result[36].astype(np.int8)
+        result[36] = result[36].astype(np.bool)
         result[37] = result[37].astype(np.int8)
         result[38] = result[38].astype(np.int8)
         result[39] = result[39].astype(np.int8)
@@ -199,11 +209,11 @@ class DataDownloader():
         indexes = np.where(self.output[0] == region)
         a = [np.take(self.output[i], indexes)[0] for i in range(len(self.output))]
         # print(a)
-        return (["region", "", "", "date", "weekday", "time"], a)
+        return (self.columns, a)
         
 
     def get_list(self, regions = None):
-        columns = []
+        res_columns = []
         values = []
         stats = None
         for region in regions if regions is not None else REGIONS.keys():
@@ -220,7 +230,7 @@ class DataDownloader():
                     pickle.dump(stats, f)
                 self.cache[region] = stats
             
-            columns = stats[0]
+            res_columns = stats[0]
             tmp = stats[1]
             if values == []:
                 values = tmp
@@ -230,10 +240,13 @@ class DataDownloader():
                 
         # print(values)
         # print(type(values))
-        return (columns, values)
+        return (res_columns, values)
 
 
 if __name__ == "__main__":
     requests_cache.install_cache('cache') 
     print("CACHE IS ON")
-    DataDownloader().get_list(["PHA", "JHC", "STC"])
+    columns, values = DataDownloader().get_list(["PHA", "JHC", "STC"])
+    # print(values)
+    print(f"Column names: {', '.join(columns)}")
+    print(f"Count of crashes: {values[0].size}")
