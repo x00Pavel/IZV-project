@@ -34,8 +34,9 @@ def plot_stat(data_source, fig_location = None, show_figure = False):
         else:
             stats[year][regions[index]] = 1
 
-    fig, plots = plt.subplots(len(stats))
+    fig, plots = plt.subplots(len(stats), figsize=[11,10])
     fig.suptitle('My statistics')
+    # fig.(figsize=[10,8])
     # plots.invert_yaxis() 
 
     for index, year in enumerate(stats.keys()):
@@ -45,6 +46,7 @@ def plot_stat(data_source, fig_location = None, show_figure = False):
         plots[index].set_xticks(range(len(stats[year])))
         plots[index].set_xticklabels([i[0] for i in stats[year]])
         plots[index].title.set_text(f"Year {year}")
+        plots[index].set(xlabel='Regions', ylabel='Count of crashes')
         for s in ['top', 'right']: 
             plots[index].spines[s].set_visible(False) 
         for rect in rects:
