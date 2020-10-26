@@ -11,6 +11,7 @@ import numpy as np
 from glob import glob
 from pprint import pprint as pp
 import pickle
+# import threading 
 
 class YearStat:
     def __init__(self, region, crash_count, year):
@@ -35,7 +36,9 @@ class DataDownloader():
                "SPECIFICKÁ MÍSTA A OBJEKTY V MÍSTĚ NEHODY", "SMĚROVÉ POMĚRY", "POČET ZÚČASTNĚNÝCH VOZIDEL", "MÍSTO DOPRAVNÍ NEHODY", 
                "DRUH KŘIŽUJÍCÍ KOMUNIKACE", "DRUH VOZIDLA", "VÝROBNÍ ZNAČKA MOTOROVÉHO VOZIDLA", "ROK VÝROBY VOZIDLA", 
                "CHARAKTERISTIKA VOZIDLA", "SMYK", "VOZIDLO PO NEHODĚ", "ÚNIK PROVOZNÍCH, PŘEPRAVOVANÝCH HMOT", 
-               "ZPŮSOB VYPROŠTĚNÍ OSOB Z VOZIDLA", "SMĚR JÍZDY NEBO POSTAVENÍ VOZIDLA", "ŠKODA NA VOZIDLE", "KATEGORIE ŘIDIČE", "STAV ŘIDIČE", "VNĚJŠÍ OVLIVNĚNÍ ŘIDIČE"]
+               "ZPŮSOB VYPROŠTĚNÍ OSOB Z VOZIDLA", "SMĚR JÍZDY NEBO POSTAVENÍ VOZIDLA", "ŠKODA NA VOZIDLE", "KATEGORIE ŘIDIČE", 
+               "STAV ŘIDIČE", "VNĚJŠÍ OVLIVNĚNÍ ŘIDIČE", "<a>", "<b>", "<c>", "SOURADNICE X", "SOURADNICE Y", 
+               "<f>","<g>","<h>","<i>","<j>","<k>","<l>","<o>","<p>","<q>","<r>","<s>","<t>","LOKALITA NEHODY"]
     file_to_reg = {
         "00.csv": "PHA",
         "01.csv": "STC",
@@ -132,7 +135,7 @@ class DataDownloader():
                                                     autostrip=True,
                                                     missing_values="XX",
                                                     filling_values="-1",
-                                                    usecols=(np.arange(1,45)),
+                                                    usecols=(np.arange(1,64)),
                                                     )
                     if result is None:
                         result = np.insert(values, 0, region, axis=1)
@@ -140,18 +143,33 @@ class DataDownloader():
                         result = np.concatenate((result, np.insert(values, 0, region, axis=1)))
         
         print("Start processing dataset")
-        result[result == ''] = -1
         result = list(np.transpose(result))
         for index, arr in enumerate(result):
-            result[index] = np.char.replace(arr, '"', '')
-            # print(index, self.output[index])
+            arr[arr == '""'] = -1
+            arr[arr == ''] = -1
+            arr = np.char.replace(arr, 'A:', '-1')
+            arr = np.char.replace(arr, 'B:', '-1')
+            arr = np.char.replace(arr, 'D:', '-1')
+            arr = np.char.replace(arr, 'E:', '-1')
+            arr = np.char.replace(arr, 'F:', '-1')
+            arr = np.char.replace(arr, 'G:', '-1')
+            arr = np.char.replace(arr, 'H:', '-1')
+            arr = np.char.replace(arr, 'J:', '-1')
+            arr = np.char.replace(arr, '"', '')
+            arr[arr == ''] = -1
+            result[index] = np.char.replace(arr, ',', '.')
+            # for index_inner, element in enumerate(arr):
+            #     if element == "":
+            #         arr[index_inner] = -1
+            # print(index, result[index])
 
-        result[0]  = result[0].astype("U3")
+
+        result[0]  = result[0].astype(np.unicode)
         result[1]  = result[1].astype(np.int8)
         result[2]  = result[2].astype(np.int8)
         result[3]  = result[3].astype(np.datetime64)
         result[4]  = result[4].astype(np.int8)
-        result[5]  = result[5].astype("U4")
+        result[5]  = result[5].astype(np.unicode)
         result[6]  = result[6].astype(np.int8)
         result[7]  = result[7].astype(np.int8)
         result[8]  = result[8].astype(np.int8)
@@ -165,7 +183,7 @@ class DataDownloader():
         result[16] = result[16].astype(np.int16)
         result[17] = result[17].astype(np.int8)
         result[18] = result[18].astype(np.int8)
-        result[19] = result[19].astype("U2")
+        result[19] = result[19].astype(np.unicode)
         result[20] = result[20].astype(np.int8)
         result[21] = result[21].astype(np.int8)
         result[22] = result[22].astype(np.int8)
@@ -173,14 +191,14 @@ class DataDownloader():
         result[24] = result[24].astype(np.int8)
         result[25] = result[25].astype(np.int8)
         result[26] = result[26].astype(np.int8)
-        result[27] = result[27].astype("U2")
+        result[27] = result[27].astype(np.unicode)
         result[28] = result[28].astype(np.int8)
         result[29] = result[29].astype(np.int8)
         result[30] = result[30].astype(np.int8)
         result[31] = result[31].astype(np.int8)
         result[32] = result[32].astype(np.int8)
         result[33] = result[33].astype(np.int8)
-        result[34] = result[34].astype("U2")
+        result[34] = result[34].astype(np.unicode)
         result[35] = result[35].astype(np.int8)
         result[36] = result[36].astype(np.bool)
         result[37] = result[37].astype(np.int8)
@@ -191,11 +209,30 @@ class DataDownloader():
         result[42] = result[42].astype(np.int8)
         result[43] = result[43].astype(np.int8)
         result[44] = result[44].astype(np.int8)
+        result[45] = result[45].astype(np.float)
+        result[46] = result[46].astype(np.float)
+        result[47] = result[47].astype(np.float)
+        result[48] = result[48].astype(np.float)
+        result[49] = result[49].astype(np.float)
+        result[50] = result[50].astype(np.float)
+        result[51] = result[51].astype(np.unicode)
+        result[52] = result[52].astype(np.unicode)
+        result[53] = result[53].astype(np.unicode)
+        result[54] = result[54].astype(np.unicode)
+        result[55] = result[55].astype(np.unicode)
+        result[56] = result[56].astype(np.unicode)
+        result[57] = result[57].astype(np.float)
+        result[58] = result[58].astype(np.unicode)
+        result[59] = result[59].astype(np.unicode)
+        result[60] = result[60].astype(np.unicode)
+        result[61] = result[61].astype(np.unicode)
+        result[62] = result[62].astype(np.unicode)
+        result[63] = result[63].astype(np.unicode)
 
         if self.output is None:
             self.output = result
         else:
-            for index in range(0,45):
+            for index in range(0, len(self.output)):
                 self.output[index] = np.concatenate((self.output[index], result[index]))
         
         print("Dataset processing finished")
@@ -205,6 +242,7 @@ class DataDownloader():
             mkdir(self.folder)
         if self.cache_filename.format(region) not in listdir(self.folder):
             self.download_data([region])
+
         
         indexes = np.where(self.output[0] == region)
         a = [np.take(self.output[i], indexes)[0] for i in range(len(self.output))]
@@ -246,7 +284,10 @@ class DataDownloader():
 if __name__ == "__main__":
     requests_cache.install_cache('cache') 
     print("CACHE IS ON")
-    columns, values = DataDownloader().get_list(["PHA", "JHC", "STC"])
+    columns, values = DataDownloader().get_list()
     # print(values)
-    print(f"Column names: {', '.join(columns)}")
-    print(f"Count of crashes: {values[0].size}")
+    res_str = "\n".join([f"{columns[i]} -> {values[i]}" for i in range(0, len(columns))])
+    print(f"Column names:\n{res_str}")
+    print("#"*80)
+    print(f"{' '*25}Count of crashes: {values[0].size}")
+    print("#"*80)
