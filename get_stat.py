@@ -31,7 +31,7 @@ def plot_stat(data_source, fig_location = None, show_figure = False):
         rects = plots[index].bar(range(len(stats[year])), [i[1] for i in stats[year]], align='center')
         plots[index].set_xticks(range(len(stats[year])))
         plots[index].set_xticklabels([i[0] for i in stats[year]])
-        plots[index].title.set_text(f"Year {year}")
+        plots[index].set_title(f"Y{year}", loc="right")
         plots[index].set(xlabel='Regions', ylabel='Count of crashes')
         for s in ['top', 'right']: 
             plots[index].spines[s].set_visible(False) 
@@ -57,6 +57,9 @@ if __name__ == "__main__":
     regions = [""]
     while not all([len(a) == 3 for a in regions]):
         regions = input("Choose regions for statistics (REG REG ...): ").split(" ")
+        if regions == [""]:
+            regions = None
+            break
         print("Please provide regions code such as PHA fro Praha a t.d")
         
     result = DataDownloader().get_list(regions)
