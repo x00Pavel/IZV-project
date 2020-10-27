@@ -54,7 +54,11 @@ if __name__ == "__main__":
     parser.add_argument('--show_figure', type=bool, default=False)
     parser.add_argument('--fig_location', type=str, default=None)
     args = parser.parse_args()
-    regions = input("Choose regions for statistics (reg1 reg2...): ").split(" ")
+    regions = [""]
+    while not all([len(a) == 3 for a in regions]):
+        regions = input("Choose regions for statistics (REG REG ...): ").split(" ")
+        print("Please provide regions code such as PHA fro Praha a t.d")
+        
     result = DataDownloader().get_list(regions)
     plot_stat(result, fig_location=args.fig_location, show_figure=args.show_figure)
 
