@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from download import DataDownloader
 
 
-def plot_stat(data_source, fig_location = None, show_figure = False):
+def plot_stat(data_source, fig_location = None, show_figure = True):
     stats = {}
     regions = data_source[1][0]
     years = [i.split("-")[0] for i in np.datetime_as_string(data_source[1][3])]
@@ -23,15 +23,15 @@ def plot_stat(data_source, fig_location = None, show_figure = False):
 
     fig, plots = plt.subplots(len(stats), figsize=[len(stats["2016"]) + 2,10], sharey=True)
     fig.suptitle('Amount of car crashes in CR regions')
-
-
+    values = [] 
+    
     for index, year in enumerate(stats.keys()):
         stats[year] =  sorted(stats[year].items(), key=itemgetter(1), reverse=True) # {k: v for k, v in sorted(stats[year].items(), key=lambda item: item[1])}
-        # print(type(stats[year]))
+        values += [i[1] for i in stats[year]]
         rects = plots[index].bar(range(len(stats[year])), [i[1] for i in stats[year]], align='center')
         plots[index].set_xticks(range(len(stats[year])))
         plots[index].set_xticklabels([i[0] for i in stats[year]])
-        plots[index].set_title(f"Y{year}", loc="right")
+        plots[index].set_title(f"Year{year}", )
         plots[index].set(xlabel='Regions', ylabel='Count of crashes')
         for s in ['top', 'right']: 
             plots[index].spines[s].set_visible(False) 
@@ -39,15 +39,18 @@ def plot_stat(data_source, fig_location = None, show_figure = False):
             height = rect.get_height()
             plots[index].annotate(str(height), (rect.get_x() + rect.get_width()/2, height + 500.0),  ha='center', va='bottom')
 
-    fig.tight_layout()   
+    plt.ylim(0, max(values) + 3000)
     
+    fig.tight_layout()
+
+    plt.show()
+
     if fig_location:
         if not path.exists(fig_location):
             mkdir(fig_location)
         plt.savefig(f"{fig_location}/statistic_{'_'.join([i[0] for i in stats['2016']])}.png")
     
-    if show_figure:
-            plt.show()
+    # if show_figure:
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='Plot statistics of car crashes in Czech Republic')
@@ -56,7 +59,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     regions = [""]
     while not all([len(a) == 3 for a in regions]):
-        regions = input("Choose regions for statistics (REG REG ...): ").split(" ")
+        regions = input("Choose regions for statistics (REG REG ...) or leave empty for all regions: ").split(" ")
         if regions == [""]:
             regions = None
             break

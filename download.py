@@ -10,7 +10,7 @@ import numpy as np
 from glob import glob
 from pprint import pprint as pp
 import pickle
-
+import time
 
 REGIONS ={
     "PHA": ("00.csv", "Hlavní město Praha"),
@@ -71,6 +71,8 @@ class DataDownloader():
         self.url = url
         self.folder = folder
         self.cache_filename = cache_filename
+        if self.folder not in listdir():
+            mkdir(self.folder)
 
     def get_links(self, response):
         soup = bs(response, "html.parser")
@@ -267,11 +269,11 @@ class DataDownloader():
         for region in regions if regions is not None else REGIONS.keys():
             if region in self.cache.keys():
                 stats = self.cache[region]
-                print("In cache")
+                print("Data in program cache")
             elif self.cache_filename.format(region) in listdir(self.folder):
                 with open(f'{self.folder}/{self.cache_filename.format(region)}','rb') as f:
                     stats = pickle.load(f)
-                print('In FILES')
+                print('Data in cache files')
             else:
                 stats = self.parse_region_data(region)
                 with open(f"{self.folder}/{self.cache_filename.format(region)}",'wb') as f:
@@ -294,10 +296,11 @@ class DataDownloader():
 if __name__ == "__main__":
     requests_cache.install_cache('cache') 
     print("CACHE IS ON")
-    columns, values = DataDownloader().get_list(["PHA", "JHC"])
+    # start = time.time()
+    columns, values = DataDownloader().get_list()
+    # print(f"------------------------> {time.time() - start} seconds")
     res_str = "\n".join([f"{columns[i]} -> {values[i]}" for i in range(0, len(columns))])
     print(f"Column names:\n{res_str}")
     print("#"*80)
     print(f"{' '*25}Count of crashes: {values[0].size}")
     print("#"*80)
-    plot_stat((columns, values))
