@@ -1,4 +1,3 @@
-from get_stat import REGIONS, plot_stat 
 import requests
 import requests_cache
 from bs4 import BeautifulSoup as bs, element
@@ -11,13 +10,24 @@ import numpy as np
 from glob import glob
 from pprint import pprint as pp
 import pickle
-# import threading 
 
-class YearStat:
-    def __init__(self, region, crash_count, year):
-        self.region = region
-        self.crash_count = crash_count
-        self.year = year
+
+REGIONS ={
+    "PHA": ("00.csv", "Hlavní město Praha"),
+    "STC": ("01.csv", "Středočeský"),
+    "JHC": ("02.csv", "Jihočeský"),
+    "PLK": ("03.csv", "Plzeňský"),
+    "KVK": ("19.csv", "Karlovarský"), 
+    "ULK": ("04.csv", "Ústecký"),
+    "LBK": ("18.csv", "Liberecký"),
+    "HKK": ("05.csv", "Královéhradecký"), 
+    "PAK": ("17.csv", "Pardubický"),
+    "OLK": ("14.csv", "Olomoucký"),
+    "MSK": ("07.csv", "Moravskoslezský"), 
+    "JHM": ("06.csv", "Jihomoravský"),
+    "ZLK": ("15.csv", "Zlínský"),
+    "VYS": ("16.csv", "Kraj Vysočina") 
+}
 
 
 class DataDownloader():
@@ -284,7 +294,7 @@ class DataDownloader():
 if __name__ == "__main__":
     requests_cache.install_cache('cache') 
     print("CACHE IS ON")
-    columns, values = DataDownloader().get_list()
+    columns, values = DataDownloader().get_list(["PHA", "JHC"])
     res_str = "\n".join([f"{columns[i]} -> {values[i]}" for i in range(0, len(columns))])
     print(f"Column names:\n{res_str}")
     print("#"*80)
