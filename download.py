@@ -155,26 +155,29 @@ class DataDownloader():
                         result = np.concatenate((result, np.insert(values, 0, region, axis=1)))
         
         print("Start processing dataset")
+        time_s = time.time()
         result = list(np.transpose(result))
+        letters = ['A:', 'B:', 'D:', 'E:', 'F:', 'G:', 'H:', 'J:']
         for index, arr in enumerate(result):
-            arr[arr == '""'] = -1
-            arr[arr == ''] = -1
-            arr = np.char.replace(arr, 'A:', '-1')
-            arr = np.char.replace(arr, 'B:', '-1')
-            arr = np.char.replace(arr, 'D:', '-1')
-            arr = np.char.replace(arr, 'E:', '-1')
-            arr = np.char.replace(arr, 'F:', '-1')
-            arr = np.char.replace(arr, 'G:', '-1')
-            arr = np.char.replace(arr, 'H:', '-1')
-            arr = np.char.replace(arr, 'J:', '-1')
-            arr = np.char.replace(arr, '"', '')
-            arr[arr == ''] = -1
-            result[index] = np.char.replace(arr, ',', '.')
-            # for index_inner, element in enumerate(arr):
-            #     if element == "":
-            #         arr[index_inner] = -1
-            # print(index, result[index])
+            for index_inner, elem in enumerate(arr):
+                # [i for i, x in enumerate(t) if x]
+                tmp = [ext for ext in letters if ext in elem]
+                if tmp != []:
+                    for letter in tmp:
+                        elem = elem.replace(letter, '')
+                if elem == '""':
+                    elem = "-1"
+                if ',' in elem:
+                    elem = elem.replace(',', '.')
+                if '"' in elem:
+                    elem = elem.replace('"', '')
+                if elem == '':
+                    elem = "-1"
+                arr[index_inner] = elem
 
+            result[index] = arr        
+
+        print(f"{'#'*80}\nTime for filtering data: {time.time() - time_s}\n{'#'*80}")
 
         result[0]  = result[0].astype(np.unicode)
         result[1]  = result[1].astype(np.int8)
@@ -241,12 +244,17 @@ class DataDownloader():
         result[62] = result[62].astype(np.unicode)
         result[63] = result[63].astype(np.unicode)
 
+
         if self.output is None:
             self.output = result
         else:
+            time_s = time.time()
+
             for index in range(0, len(self.output)):
-                self.output[index] = np.concatenate((self.output[index], result[index]))
-        
+                self.output[index] = np.concatenate(
+                    (self.output[index], result[index]))
+            print(
+                f"{'#'*80}\nTime for concatination: {time.time() - time_s}\n{'#'*80}")
         print("Dataset processing finished")
 
     def parse_region_data(self, region = "PHA") -> ([], np.array):
@@ -258,7 +266,6 @@ class DataDownloader():
         
         indexes = np.where(self.output[0] == region)
         a = [np.take(self.output[i], indexes)[0] for i in range(len(self.output))]
-        # print(a)
         return (self.columns, a)
         
 
@@ -296,9 +303,9 @@ class DataDownloader():
 if __name__ == "__main__":
     requests_cache.install_cache('cache') 
     print("CACHE IS ON")
-    # start = time.time()
+    star_s= time.time()
     columns, values = DataDownloader().get_list()
-    # print(f"------------------------> {time.time() - start} seconds")
+    print(f"{'#'*80}\nTotal time: {time.time() - star_s}\n{'#'*80}")
     res_str = "\n".join([f"{columns[i]} -> {values[i]}" for i in range(0, len(columns))])
     print(f"Column names:\n{res_str}")
     print("#"*80)
