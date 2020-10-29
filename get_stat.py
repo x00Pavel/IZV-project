@@ -8,7 +8,14 @@ from download import DataDownloader
 
 
 def plot_stat(data_source, fig_location=None, show_figure=False):
+    """Generete dinamical figure from given data set.
 
+    Arguments:
+    data_source -- tuple with two lists. First list containt names for each 
+                   array in second list with numpy array data type.
+    fig_location -- folder, where result figure should be stored (default None)
+    show_figure -- define if result figure should be shown or not (default False)
+    """
     stats = {}
     regions = data_source[1][0]
     years = [i.split("-")[0] for i in np.datetime_as_string(data_source[1][3])]
@@ -28,7 +35,6 @@ def plot_stat(data_source, fig_location=None, show_figure=False):
     values = []
 
     for index, year in enumerate(stats.keys()):
-        # {k: v for k, v in sorted(stats[year].items(), key=lambda item: item[1])}
         stats[year] = sorted(stats[year].items(),
                              key=itemgetter(1), reverse=True)
         values += [i[1] for i in stats[year]]

@@ -31,7 +31,7 @@ REGIONS ={
 
 
 class DataDownloader():
-
+    """Class for downloading and preprocessing data."""
     url = ""
     folder = ""
     cache_filename = ""
@@ -68,6 +68,15 @@ class DataDownloader():
     }
 
     def __init__(self, url="https://ehw.fit.vutbr.cz/izv/", folder="data", cache_filename="data_{}.pkl.gz"):
+        """Initialise object of given class and creates folder for storing data.
+        
+        Keyarguments:
+        url -- base url to download data (default https://ehw.fit.vutbr.cz/izv/)
+        folder -- directory, where downloaded and processed data should be 
+                  stored (default data)
+        cache_filename -- filename for storing already processed data (default 
+                          data_{}.pkl.gz). Should contain placeholder for region code
+        """
         self.url = url
         self.folder = folder
         self.cache_filename = cache_filename
@@ -75,6 +84,14 @@ class DataDownloader():
             mkdir(self.folder)
 
     def get_links(self, response):
+        """Parse HTML response and extract all links to .zip files.
+        
+        Arguments:
+        response -- HTML response from request on self.url
+
+        Return:
+        list of relative paths to archives
+        """
         soup = bs(response, "html.parser")
         data = soup.find_all("td", class_="text-center", text=compile(r"Prosinec \d{4}"))
         links = []
@@ -92,6 +109,13 @@ class DataDownloader():
         return links
     
     def download_data(self, regions = None):
+        """Donwload, filter and preprocess data from self.url.
+        
+        Store processed data in program cache.
+
+        Arguments:
+        regions -- list of regions to extract and preprocess (default None)
+        """
         s = requests.session()
         header = {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
                     "Accept-Encoding": "gzip, deflate, br",
@@ -110,9 +134,6 @@ class DataDownloader():
         response = s.get(self.url, headers=header)
         links = self.get_links(response.text)
 
-        # Create data containing folder
-        if self.folder not in listdir():
-            mkdir(self.folder)
 
         for link in links:
             archive_name = link.split('/')[1]
@@ -134,6 +155,7 @@ class DataDownloader():
         else:
             regions = [REGIONS[reg][0] for reg in regions]
         result = None
+        # Read data from CSV files to program memory
         for archive in archives:
             print(f"Archive is open: {archive}")
             zip_archive = zf(archive)
@@ -155,12 +177,11 @@ class DataDownloader():
                         result = np.concatenate((result, np.insert(values, 0, region, axis=1)))
         
         print("Start processing dataset")
-        time_s = time.time()
         result = list(np.transpose(result))
         letters = ['A:', 'B:', 'D:', 'E:', 'F:', 'G:', 'H:', 'J:']
+        # Filter data, deleting wrong formated ciles
         for index, arr in enumerate(result):
             for index_inner, elem in enumerate(arr):
-                # [i for i, x in enumerate(t) if x]
                 tmp = [ext for ext in letters if ext in elem]
                 if tmp != []:
                     for letter in tmp:
@@ -177,7 +198,6 @@ class DataDownloader():
 
             result[index] = arr        
 
-        print(f"{'#'*80}\nTime for filtering data: {time.time() - time_s}\n{'#'*80}")
 
         result[0]  = result[0].astype(np.unicode)
         result[1]  = result[1].astype(np.int8)
@@ -244,20 +264,25 @@ class DataDownloader():
         result[62] = result[62].astype(np.unicode)
         result[63] = result[63].astype(np.unicode)
 
-
+        # Creating program cache
         if self.output is None:
             self.output = result
         else:
-            time_s = time.time()
-
             for index in range(0, len(self.output)):
                 self.output[index] = np.concatenate(
                     (self.output[index], result[index]))
-            print(
-                f"{'#'*80}\nTime for concatination: {time.time() - time_s}\n{'#'*80}")
         print("Dataset processing finished")
 
-    def parse_region_data(self, region = "PHA") -> ([], np.array):
+    def parse_region_data(self, region="PHA") -> ([str], [np.array]):
+        """"Parse data for given region.
+        
+        Arguments:
+        region -- three-letter code of region that should be parsed (default PHA)
+
+        Return:
+        tuple of two lists. First list contain names for each column in second 
+        list with numpy.array lists inside.
+        """
         if self.folder not in listdir():
             mkdir(self.folder)
         if self.cache_filename.format(region) not in listdir(self.folder):
@@ -269,7 +294,24 @@ class DataDownloader():
         return (self.columns, a)
         
 
-    def get_list(self, regions = None):
+    def get_list(self, regions = None) -> ([str], [np.array]):
+        """Get data set for given regions.
+
+        Data for each region would be parsed using parse_region_data(region)
+        method. If cache file for current regions is present in data folder,
+        that data would be loaded from this file. If data already stored in 
+        program cache, they also will be loaded from cache and stored to cache file
+        without calling parse_region_data(region) metod.
+
+        Arguments:
+        regions -- list of three-letter regions code that should presents in 
+                   output (default None, thath means all regions)
+
+        Return:
+        tuple of two lists. First list contain names for each column in second
+        list with numpy.array lists inside. Second list contain data for each
+        regions from regions argument.        
+        """
         res_columns = []
         values = []
         stats = None
@@ -295,8 +337,6 @@ class DataDownloader():
                 for i in range(0,45):
                     values[i] = np.concatenate((values[i], tmp[i])) 
                 
-        # print(values)
-        # print(type(values))
         return (res_columns, values)
 
 
