@@ -2,7 +2,7 @@ import numpy as np
 from operator import itemgetter
 from pprint import pprint as pp
 import matplotlib.pyplot as plt
-from os import path, mkdir
+from os import path, mkdir, makedirs
 from argparse import ArgumentParser
 from download import DataDownloader
 
@@ -31,7 +31,7 @@ def plot_stat(data_source, fig_location=None, show_figure=False):
 
     fig, plots = plt.subplots(
         len(stats), figsize=[len(stats["2016"]) + 2, 10], sharey=True)
-    fig.suptitle('Amount of car crashes in CR regions')
+    fig.suptitle('Crash statistics')
     values = []
 
     for index, year in enumerate(stats.keys()):
@@ -55,10 +55,12 @@ def plot_stat(data_source, fig_location=None, show_figure=False):
     fig.tight_layout()
 
     if fig_location:
-        if not path.exists(fig_location):
-            mkdir(fig_location)
-        plt.savefig(
-            f"{fig_location}/statistic_{'_'.join([i[0] for i in stats['2016']])}.png")
+        list_path = fig_location.split("/")[0:-1]
+        if len(list_path) != 1:
+            dir_path = "/".join(list_path)
+            if not path.exists(dir_path):
+                makedirs(dir_path)
+        plt.savefig(fig_location)
 
     if show_figure:
         plt.show()

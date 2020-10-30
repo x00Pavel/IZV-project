@@ -344,7 +344,7 @@ if __name__ == "__main__":
     requests_cache.install_cache('cache') 
     print("CACHE IS ON")
     star_s= time.time()
-    columns, values = DataDownloader().get_list()
+    columns, values = DataDownloader().get_list(["PHA", "JHC", "KVM"])
     print(f"{'#'*80}\nTotal time: {time.time() - star_s}\n{'#'*80}")
     res_str = "\n".join([f"{columns[i]} -> {values[i]}" for i in range(0, len(columns))])
     print(f"Column names:\n{res_str}")
