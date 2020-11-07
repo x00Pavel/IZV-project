@@ -79,7 +79,7 @@ if __name__ == "__main__":
         if regions == [""]:
             regions = None
             break
-        print("Please provide regions code such as PHA fro Praha a t.d")
+        print("Please provide regions code such as PHA for Praha a t.d")
 
     result = DataDownloader().get_list(regions)
     plot_stat(result, fig_location=args.fig_location,

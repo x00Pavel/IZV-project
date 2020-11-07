@@ -1,3 +1,6 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
 import requests
 import requests_cache
 from bs4 import BeautifulSoup as bs, element
@@ -164,11 +167,9 @@ class DataDownloader():
                     print(f"File is open: {file}")
                     region = self.file_to_reg[file]
                     values = np.genfromtxt(zip_archive.open(file), delimiter=";", 
-                                                    encoding="ISO-8859-1", 
-                                                    dtype="unicode", 
+                                                    encoding="cp1250",
+                                                    dtype="U23", 
                                                     autostrip=True,
-                                                    missing_values="XX",
-                                                    filling_values="-1",
                                                     usecols=(np.arange(1,64)),
                                                     )
                     if result is None:
@@ -186,8 +187,6 @@ class DataDownloader():
                 if tmp != []:
                     for letter in tmp:
                         elem = elem.replace(letter, '')
-                if elem == '""':
-                    elem = "-1"
                 if ',' in elem:
                     elem = elem.replace(',', '.')
                 if '"' in elem:
@@ -198,13 +197,10 @@ class DataDownloader():
 
             result[index] = arr        
 
-
-        result[0]  = result[0].astype(np.unicode)
         result[1]  = result[1].astype(np.int8)
         result[2]  = result[2].astype(np.int8)
         result[3]  = result[3].astype(np.datetime64)
         result[4]  = result[4].astype(np.int8)
-        result[5]  = result[5].astype(np.unicode)
         result[6]  = result[6].astype(np.int8)
         result[7]  = result[7].astype(np.int8)
         result[8]  = result[8].astype(np.int8)
@@ -218,7 +214,6 @@ class DataDownloader():
         result[16] = result[16].astype(np.int16)
         result[17] = result[17].astype(np.int8)
         result[18] = result[18].astype(np.int8)
-        result[19] = result[19].astype(np.unicode)
         result[20] = result[20].astype(np.int8)
         result[21] = result[21].astype(np.int8)
         result[22] = result[22].astype(np.int8)
@@ -226,14 +221,12 @@ class DataDownloader():
         result[24] = result[24].astype(np.int8)
         result[25] = result[25].astype(np.int8)
         result[26] = result[26].astype(np.int8)
-        result[27] = result[27].astype(np.unicode)
         result[28] = result[28].astype(np.int8)
         result[29] = result[29].astype(np.int8)
         result[30] = result[30].astype(np.int8)
         result[31] = result[31].astype(np.int8)
         result[32] = result[32].astype(np.int8)
         result[33] = result[33].astype(np.int8)
-        result[34] = result[34].astype(np.unicode)
         result[35] = result[35].astype(np.int8)
         result[36] = result[36].astype(np.bool)
         result[37] = result[37].astype(np.int8)
@@ -248,21 +241,7 @@ class DataDownloader():
         result[46] = result[46].astype(np.float)
         result[47] = result[47].astype(np.float)
         result[48] = result[48].astype(np.float)
-        result[49] = result[49].astype(np.float)
-        result[50] = result[50].astype(np.float)
-        result[51] = result[51].astype(np.unicode)
-        result[52] = result[52].astype(np.unicode)
-        result[53] = result[53].astype(np.unicode)
-        result[54] = result[54].astype(np.unicode)
-        result[55] = result[55].astype(np.unicode)
-        result[56] = result[56].astype(np.unicode)
         result[57] = result[57].astype(np.float)
-        result[58] = result[58].astype(np.unicode)
-        result[59] = result[59].astype(np.unicode)
-        result[60] = result[60].astype(np.unicode)
-        result[61] = result[61].astype(np.unicode)
-        result[62] = result[62].astype(np.unicode)
-        result[63] = result[63].astype(np.unicode)
 
         # Creating program cache
         if self.output is None:
@@ -341,11 +320,7 @@ class DataDownloader():
 
 
 if __name__ == "__main__":
-    requests_cache.install_cache('cache') 
-    print("CACHE IS ON")
-    star_s= time.time()
-    columns, values = DataDownloader().get_list(["PHA", "JHC", "KVM"])
-    print(f"{'#'*80}\nTotal time: {time.time() - star_s}\n{'#'*80}")
+    columns, values = DataDownloader().get_list(["PHA", "HKK", "JHC"])
     res_str = "\n".join([f"{columns[i]} -> {values[i]}" for i in range(0, len(columns))])
     print(f"Column names:\n{res_str}")
     print("#"*80)
