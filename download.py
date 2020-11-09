@@ -14,6 +14,7 @@ from glob import glob
 from pprint import pprint as pp
 import pickle
 import time
+import gzip
 
 REGIONS ={
     "PHA": ("00.csv", "Hlavní město Praha"),
@@ -32,6 +33,8 @@ REGIONS ={
     "VYS": ("16.csv", "Kraj Vysočina") 
 }
 
+def log(msg):
+    print(f"[LOG] {msg}")
 
 class DataDownloader():
     """Class for downloading and preprocessing data."""
@@ -86,7 +89,7 @@ class DataDownloader():
         if self.folder not in listdir():
             mkdir(self.folder)
 
-    def get_links(self, response):
+    def downlaod_zip(self):
         """Parse HTML response and extract all links to .zip files.
         
         Arguments:
@@ -95,7 +98,24 @@ class DataDownloader():
         Return:
         list of relative paths to archives
         """
-        soup = bs(response, "html.parser")
+
+        s = requests.session()
+        header = {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                  "Accept-Encoding": "gzip, deflate, br",
+                  "Accept-Language": "cs-CZ,cs;q=0.9,ru;q=0.8",
+                  "Cache-Control": "no-cache",
+                  "Connection": "keep-alive",
+                  "DNT": "1",
+                  "Host": "ehw.fit.vutbr.cz",
+                  "Pragma": "no-cache",
+                  "Sec-Fetch-Dest": "document",
+                  "Sec-Fetch-Mode": "navigate",
+                  "Sec-Fetch-Site": "cross-site",
+                  "Sec-Fetch-User": "?1",
+                  "Upgrade-Insecure-Requests": "1",
+                  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36", }
+        response = s.get(self.url, headers=header)
+        soup = bs(response.text, "html.parser")
         data = soup.find_all("td", class_="text-center", text=compile(r"Prosinec \d{4}"))
         links = []
         for entry in data:
@@ -109,34 +129,6 @@ class DataDownloader():
                 except IndexError:
                     tr = tr.previous_sibling
                     continue
-        return links
-    
-    def download_data(self, regions = None):
-        """Donwload, filter and preprocess data from self.url.
-        
-        Store processed data in program cache.
-
-        Arguments:
-        regions -- list of regions to extract and preprocess (default None)
-        """
-        s = requests.session()
-        header = {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "Accept-Language": "cs-CZ,cs;q=0.9,ru;q=0.8",
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                    "DNT": "1",
-                    "Host": "ehw.fit.vutbr.cz",
-                    "Pragma": "no-cache",
-                    "Sec-Fetch-Dest": "document",
-                    "Sec-Fetch-Mode": "navigate",
-                    "Sec-Fetch-Site": "cross-site",
-                    "Sec-Fetch-User": "?1",
-                    "Upgrade-Insecure-Requests": "1",
-                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36",}
-        response = s.get(self.url, headers=header)
-        links = self.get_links(response.text)
-
 
         for link in links:
             archive_name = link.split('/')[1]
@@ -147,40 +139,66 @@ class DataDownloader():
                         with requests.get(f"{self.url}{link}", stream=True) as r:
                             for chunk in r.iter_content(chunk_size=128, decode_unicode=True):
                                 f.write(chunk)
-
-                except OSError:
-                    # This can sometimes happen and error in SSL module for python > 3.7
+                except OSError:                    # This can sometimes happen and error in SSL module for python > 3.7
                     pass
+    
+    def download_data(self, regions = None):
+        """Donwload, filter and preprocess data from self.url.
+        
+        Store data in program cache.
+
+        Arguments:
+        regions -- list of regions to extract and preprocess (default None)
+        """
+        log("Start downloading data")
+
+        self.downlaod_zip()
 
         archives = glob(f"{self.folder}/*zip")
         if not regions:
             regions = self.file_to_reg.values()
         else:
             regions = [REGIONS[reg][0] for reg in regions]
-        result = None
         # Read data from CSV files to program memory
+        region = ""
         for archive in archives:
             print(f"Archive is open: {archive}")
             zip_archive = zf(archive)
             for file in zip_archive.namelist():
                 if file in regions:
-                    print(f"File is open: {file}")
                     region = self.file_to_reg[file]
+                    print(f"File is open: {file}")
                     values = np.genfromtxt(zip_archive.open(file), delimiter=";", 
                                                     encoding="cp1250",
                                                     dtype="U23", 
                                                     autostrip=True,
                                                     usecols=(np.arange(1,64)),
                                                     )
-                    if result is None:
-                        result = np.insert(values, 0, region, axis=1)
+                    if region not in self.cache.keys():
+                        self.cache[region] = np.insert(
+                            values, 0, region, axis=1)
                     else:
-                        result = np.concatenate((result, np.insert(values, 0, region, axis=1)))
+                        self.cache[region] = np.concatenate((self.cache[region], np.insert(values, 0, region, axis=1)))
+        log("Dataset is uploaded to program cache")
+
+    def parse_region_data(self, region="PHA") -> ([str], [np.array]):
+        """"Parse data for given region.
         
-        print("Start processing dataset")
+        Arguments:
+        region -- three-letter code of region that should be parsed (default PHA)
+
+        Return:
+        tuple of two lists. First list contain names for each column in second 
+        list with numpy.array lists inside.
+        """
+        # Filter data, deleting wrong formated ciles
+        if region not in self.cache.keys():
+            self.download_data([region])
+        
+        log("Start processing dataset")
+        result = self.cache[region]
         result = list(np.transpose(result))
         letters = ['A:', 'B:', 'D:', 'E:', 'F:', 'G:', 'H:', 'J:']
-        # Filter data, deleting wrong formated ciles
         for index, arr in enumerate(result):
             for index_inner, elem in enumerate(arr):
                 tmp = [ext for ext in letters if ext in elem]
@@ -244,33 +262,13 @@ class DataDownloader():
         result[57] = result[57].astype(np.float)
 
         # Creating program cache
-        if self.output is None:
-            self.output = result
-        else:
-            for index in range(0, len(self.output)):
-                self.output[index] = np.concatenate(
-                    (self.output[index], result[index]))
-        print("Dataset processing finished")
-
-    def parse_region_data(self, region="PHA") -> ([str], [np.array]):
-        """"Parse data for given region.
+        self.cache[region] = result
         
-        Arguments:
-        region -- three-letter code of region that should be parsed (default PHA)
+        # indexes = np.where(self.output[0] == region)
+        # a = [np.take(self.output[i], indexes)[0] for i in range(len(self.output))]
+        log("Dataset processing finished")
 
-        Return:
-        tuple of two lists. First list contain names for each column in second 
-        list with numpy.array lists inside.
-        """
-        if self.folder not in listdir():
-            mkdir(self.folder)
-        if self.cache_filename.format(region) not in listdir(self.folder):
-            self.download_data([region])
-
-        
-        indexes = np.where(self.output[0] == region)
-        a = [np.take(self.output[i], indexes)[0] for i in range(len(self.output))]
-        return (self.columns, a)
+        return (self.columns, result)
         
 
     def get_list(self, regions = None) -> ([str], [np.array]):
@@ -291,32 +289,31 @@ class DataDownloader():
         list with numpy.array lists inside. Second list contain data for each
         regions from regions argument.        
         """
-        res_columns = []
-        values = []
-        stats = None
+
+        values = None
         for region in regions if regions is not None else REGIONS.keys():
+            # , stats = self.parse_region_data(region)            
+            stats = None
             if region in self.cache.keys():
-                stats = self.cache[region]
-                print("Data in program cache")
+                stats = ([],self.cache[region])
+                log("Data in program cache")
             elif self.cache_filename.format(region) in listdir(self.folder):
-                with open(f'{self.folder}/{self.cache_filename.format(region)}','rb') as f:
+                with gzip.open(f'{self.folder}/{self.cache_filename.format(region)}', 'rb') as f:
                     stats = pickle.load(f)
-                print('Data in cache files')
+                log("Data in cache files")
             else:
                 stats = self.parse_region_data(region)
-                with open(f"{self.folder}/{self.cache_filename.format(region)}",'wb') as f:
-                    pickle.dump(stats, f)
-                self.cache[region] = stats
-            
-            res_columns = stats[0]
-            tmp = stats[1]
-            if values == []:
-                values = tmp
+                with gzip.open(f'{self.folder}/{self.cache_filename.format(region)}', 'wb') as cache:
+                    pickle.dump(stats, cache)
+
+            if values is None:
+                values = stats[1]
             else:
-                for i in range(0,45):
-                    values[i] = np.concatenate((values[i], tmp[i])) 
-                
-        return (res_columns, values)
+                for index in range(0, len(values)):
+                    values[index] = np.concatenate(
+                        (values[index], stats[1][index]))
+            # print(values)
+        return (self.columns, values)
 
 
 if __name__ == "__main__":
