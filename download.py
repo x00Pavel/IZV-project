@@ -75,7 +75,7 @@ class DataDownloader():
 
     def __init__(self, url="https://ehw.fit.vutbr.cz/izv/", folder="data", cache_filename="data_{}.pkl.gz"):
         """Initialise object of given class and creates folder for storing data.
-        
+
         Keyarguments:
         url -- base url to download data (default https://ehw.fit.vutbr.cz/izv/)
         folder -- directory, where downloaded and processed data should be 
@@ -90,14 +90,7 @@ class DataDownloader():
             mkdir(self.folder)
 
     def downlaod_zip(self):
-        """Parse HTML response and extract all links to .zip files.
-        
-        Arguments:
-        response -- HTML response from request on self.url
-
-        Return:
-        list of relative paths to archives
-        """
+        """Download ZIP archives from web if needed."""
 
         s = requests.session()
         header = {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
@@ -139,13 +132,13 @@ class DataDownloader():
                         with requests.get(f"{self.url}{link}", stream=True) as r:
                             for chunk in r.iter_content(chunk_size=128, decode_unicode=True):
                                 f.write(chunk)
-                except OSError:                    # This can sometimes happen and error in SSL module for python > 3.7
+                except OSError:  # This can sometimes happen and error in SSL module for python > 3.7
                     pass
     
     def download_data(self, regions = None):
         """Donwload, filter and preprocess data from self.url.
         
-        Store data in program cache.
+        Store data in program cache. 
 
         Arguments:
         regions -- list of regions to extract and preprocess (default None)
@@ -183,7 +176,10 @@ class DataDownloader():
 
     def parse_region_data(self, region="PHA") -> ([str], [np.array]):
         """"Parse data for given region.
-        
+
+        Replace invalid values and strings. Retype each row and store back
+        to the program cache memory
+
         Arguments:
         region -- three-letter code of region that should be parsed (default PHA)
 
@@ -191,10 +187,11 @@ class DataDownloader():
         tuple of two lists. First list contain names for each column in second 
         list with numpy.array lists inside.
         """
-        # Filter data, deleting wrong formated ciles
+
         if region not in self.cache.keys():
             self.download_data([region])
         
+        # Filter data, deleting wrong formated ciles
         log("Start processing dataset")
         result = self.cache[region]
         result = list(np.transpose(result))
@@ -261,11 +258,8 @@ class DataDownloader():
         result[48] = result[48].astype(np.float)
         result[57] = result[57].astype(np.float)
 
-        # Creating program cache
+        # Update program cache
         self.cache[region] = result
-        
-        # indexes = np.where(self.output[0] == region)
-        # a = [np.take(self.output[i], indexes)[0] for i in range(len(self.output))]
         log("Dataset processing finished")
 
         return (self.columns, result)
@@ -292,7 +286,6 @@ class DataDownloader():
 
         values = None
         for region in regions if regions is not None else REGIONS.keys():
-            # , stats = self.parse_region_data(region)            
             stats = None
             if region in self.cache.keys():
                 stats = ([],self.cache[region])
@@ -312,7 +305,6 @@ class DataDownloader():
                 for index in range(0, len(values)):
                     values[index] = np.concatenate(
                         (values[index], stats[1][index]))
-            # print(values)
         return (self.columns, values)
 
 
