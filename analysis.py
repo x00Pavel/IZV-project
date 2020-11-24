@@ -22,11 +22,11 @@ def get_dataframe(filename: str, verbose: bool = False) -> pd.DataFrame:
 
     for col in df.columns:
         df[col].replace(r'(^\s*$)|-1', np.NAN, inplace=True, regex=True)
-        if col in ["p36", "p37", "weekday(p2a)", "p2b", "p6", "p7", "p8", "p9",  
+        if col in ["p36", "p37", "weekday(p2a)", "p2b", "p6", "p7", "p8", "p9",
                    "p10", "p11", "p12", "p13a", "p13b", "p13c", "p14", "p15",
                    "p16", "p17", "p18", "p19", "p20", "p21", "p22", "p23", "p24",
-                   "p27", "p28", "p34", "p35", "p39", "p44", "p45a", "p47", 
-                   "p48a", "p49", "p50a", "p50b", "p51", "p52", "p53", "p55a", 
+                   "p27", "p28", "p34", "p35", "p39", "p44", "p45a", "p47",
+                   "p48a", "p49", "p50a", "p50b", "p51", "p52", "p53", "p55a",
                    "p57", "p58", "a", "b", "d", "e", "f", "g", "j", "p5a",
                    ]:
             df[col] = pd.to_numeric(
@@ -34,9 +34,8 @@ def get_dataframe(filename: str, verbose: bool = False) -> pd.DataFrame:
         elif col == "p2a":
             df["p2a"] = pd.to_datetime(df["p2a"])
             df["date"] = df["p2a"].copy()
-        if col in ["p1", "k", "l", "n", "o", "p", "q", "r", "s", "t", "h", "i", "region"]:
-            df[col] = df[col].astype("category")
-
+        elif col in ["k", "l", "n", "o", "p", "q", "r", "s", "t", "h", "i"]:
+            df[col] = df[col].astype('category')
     if verbose:
         print(f"new_size={getsizeof(df)/1_048_576:.2f} MB")
 
@@ -70,18 +69,57 @@ def plot_conseq(df: pd.DataFrame, fig_location: str = None,
         for p in ax.patches:
             ax.annotate(round(p.get_height()), (p.get_x() + p.get_width() / 2., p.get_height()),
                         ha='center', va='center', xytext=(0, 10), textcoords='offset points')
-    
+    plt.tight_layout()
     if fig_location is not None:
         plt.savefig(fig_location)
     if show_figure:
         plt.show()
 
 
-
-# Ukol3: příčina nehody a škoda
 def plot_damage(df: pd.DataFrame, fig_location: str = None,
                 show_figure: bool = False):
-    pass
+    res = df[df['region'].isin(['JHM', 'HKK', 'PLK', 'PHA'])][[
+        "region", "p53", "p12"]]
+
+    labels = ["Not-dependent on driver", "Overspeeding", "Overtaking",
+              "Not giving way", "Not correct driving", "Car technical issue"]
+    idx = pd.IntervalIndex.from_tuples(
+        [(99, 100), (200, 209), (300, 311), (400, 414), (500, 516), (600, 616)], closed="both")
+    res["reason"] = pd.CategoricalIndex(pd.cut(res["p12"], bins=idx)).rename_categories(
+        {interval: name for interval, name in zip(idx.values, labels)})
+
+    labels = ["<50", "50-200", "200-500", "500-1000", ">100"]
+    idx = pd.IntervalIndex.from_tuples(
+        [(0, 50), (50, 200), (200, 500), (500, 1000), (1000, 100_000_000)], closed="left")
+    res["range"] = pd.CategoricalIndex(pd.cut(res["p53"], bins=idx)).rename_categories(
+        {interval: name for interval, name in zip(idx.values, labels)})
+
+    res = res.groupby(["region", "range", "reason"]).agg(
+        {"p53": "count"}).reset_index()
+    sns.set_style("darkgrid")
+
+    fg = sns.FacetGrid(data=res,
+                       col='region',
+                       col_wrap=2,
+                       sharex=False,
+                       sharey=True,
+                       height=8,
+                       aspect=1,
+                       legend_out=True)
+    # set plots on grid
+    fg.map(sns.barplot, "range", "p53", "reason", palette="deep", )
+    fg.set(yscale="log")
+    fg.add_legend(title="Reason")
+    fg.tight_layout(pad=5, h_pad=4.5)
+    for ax in fg.axes.flatten():
+        ax.set_title(ax.get_title().split("= ")[-1])
+        ax.set_xlabel("Damage [hundreds Kc]")
+        ax.set_ylabel("Count")
+
+    if fig_location is not None:
+        plt.savefig(fig_location)
+    if show_figure:
+        plt.show()
 
 # Ukol 4: povrch vozovky
 
