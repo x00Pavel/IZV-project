@@ -21,7 +21,7 @@ def get_dataframe(filename: str, verbose: bool = False) -> pd.DataFrame:
         print(f"orig_size={getsizeof(df)/1_048_576:.2f} MB")
 
     for col in df.columns:
-        df[col].replace(r'(^\s*$)|-1', np.NAN, inplace=True, regex=True)
+        df[col].replace(r"(^\s*$)", np.NAN, inplace=True, regex=True)
         if col in ["p36", "p37", "weekday(p2a)", "p2b", "p6", "p7", "p8", "p9",
                    "p10", "p11", "p12", "p13a", "p13b", "p13c", "p14", "p15",
                    "p16", "p17", "p18", "p19", "p20", "p21", "p22", "p23", "p24",
@@ -32,8 +32,9 @@ def get_dataframe(filename: str, verbose: bool = False) -> pd.DataFrame:
             df[col] = pd.to_numeric(
                 df[col], downcast='signed')
         elif col == "p2a":
-            df["p2a"] = pd.to_datetime(df["p2a"])
+            df["p2a"] = df["p2a"].astype("datetime64[M]")
             df["date"] = df["p2a"].copy()
+
         elif col in ["k", "l", "n", "o", "p", "q", "r", "s", "t", "h", "i"]:
             df[col] = df[col].astype('category')
     if verbose:
@@ -69,11 +70,12 @@ def plot_conseq(df: pd.DataFrame, fig_location: str = None,
         for p in ax.patches:
             ax.annotate(round(p.get_height()), (p.get_x() + p.get_width() / 2., p.get_height()),
                         ha='center', va='center', xytext=(0, 10), textcoords='offset points')
-    plt.tight_layout()
+    fg.tight_layout()
     if fig_location is not None:
-        plt.savefig(fig_location)
+        fg.savefig(fig_location)
     if show_figure:
         plt.show()
+    plt.close()
 
 
 def plot_damage(df: pd.DataFrame, fig_location: str = None,
@@ -110,31 +112,56 @@ def plot_damage(df: pd.DataFrame, fig_location: str = None,
     fg.map(sns.barplot, "range", "p53", "reason", palette="deep", )
     fg.set(yscale="log")
     fg.add_legend(title="Reason")
-    fg.tight_layout(pad=5, h_pad=4.5)
+    fg.tight_layout(pad=5)
     for ax in fg.axes.flatten():
         ax.set_title(ax.get_title().split("= ")[-1])
         ax.set_xlabel("Damage [hundreds Kc]")
         ax.set_ylabel("Count")
+        ax.yaxis.set_tick_params(which='both', labelleft=True)
 
     if fig_location is not None:
-        plt.savefig(fig_location)
+        fg.savefig(fig_location)
     if show_figure:
         plt.show()
-
-# Ukol 4: povrch vozovky
+    plt.close()
 
 
 def plot_surface(df: pd.DataFrame, fig_location: str = None,
                  show_figure: bool = False):
-    pass
+    res = df.loc[df['region'].isin(['JHM', 'HKK', 'PLK', 'PHA'])][[
+        "region", "date", "p16"]]
+    res = pd.crosstab(index=[res["region"], res["date"]], columns=res["p16"], colnames=[
+                      'type'], rownames=["region", "date"])
+    res = res.rename(columns={0: "Other", 1: "Dry+clean", 2: "Dry+dirty", 3: "Wet", 4: "Swamp",
+                              5: "Ice/snow + sprinkling", 6: "Ice/snow", 7: "Oil, etc", 8: "Snow layer", 9: "Road type change"})
+
+    res = res.stack().reset_index().rename(columns={0: "count"})
+    fg = sns.FacetGrid(data=res,
+                       col='region',
+                       col_wrap=2,
+                       sharex=False,
+                       sharey=True,
+                       height=6,
+                       aspect=2,
+                       legend_out=True, )
+    fg.map(sns.lineplot, "date", "count", "type", palette="deep")
+    fg.add_legend(title="Reason")
+    fg.tight_layout(pad=5)
+    for ax in fg.axes.flatten():
+        ax.set_title(ax.get_title().split("= ")[-1])
+        ax.set_xlabel("Date of the crash")
+        ax.set_ylabel("Count of crashes")
+        ax.yaxis.set_tick_params(which='both', labelleft=True)
+
+    if fig_location is not None:
+        fg.savefig(fig_location)
+    if show_figure:
+        plt.show()
+    plt.close()
 
 
 if __name__ == "__main__":
-    pass
-    # zde je ukazka pouziti, tuto cast muzete modifikovat podle libosti
-    # skript nebude pri testovani pousten primo, ale budou volany konkreni ¨
-    # funkce.
     df = get_dataframe("accidents.pkl.gz", True)
-    plot_conseq(df, fig_location="01_nasledky.png", show_figure=True)
-    plot_damage(df, "02_priciny.png", True)
-    # plot_surface(df, "03_stav.png", True)
+    plot_conseq(df, fig_location="01_nasledky.png", show_figure=False)
+    plot_damage(df, "02_priciny.png", False)
+    plot_surface(df, "03_stav.png", True)
