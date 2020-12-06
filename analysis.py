@@ -116,23 +116,25 @@ def plot_damage(df: pd.DataFrame, fig_location: str = None,
     # Choose only specific regions with required columns
     res = df[df['region'].isin(['JHM', 'HKK', 'PLK', 'PHA'])][[
         "region", "p53", "p12"]]
+    # Switch from hundreds to thousends
+    res["p53"] = res["p53"].div(10).round(0)
 
-    labels = ["Not-dependent on driver", "Overspeeding", "Overtaking",
+    labels_1 = ["Not-dependent on driver", "Overspeeding", "Overtaking",
               "Not giving way", "Not correct driving", "Car technical issue"]
     idx = pd.IntervalIndex.from_tuples(
         [(99, 100), (200, 209), (300, 311), (400, 414), (500, 516),
             (600, 616)], closed="both")
     res["reason"] = pd.CategoricalIndex(pd.cut(res["p12"], bins=idx))\
         .rename_categories(
-        {interval: name for interval, name in zip(idx.values, labels)})
+        {interval: name for interval, name in zip(idx.values, labels_1)})
 
-    labels = ["<50", "50-200", "200-500", "500-1000", ">100"]
+    labels_2 = ["<50", "50-200", "200-500", "500-1000", ">1000"]
     idx = pd.IntervalIndex.from_tuples(
         [(0, 50), (50, 200), (200, 500), (500, 1000), (1000, 100_000_000)],
         closed="left")
     res["range"] = pd.CategoricalIndex(pd.cut(res["p53"], bins=idx))\
         .rename_categories(
-        {interval: name for interval, name in zip(idx.values, labels)})
+        {interval: name for interval, name in zip(idx.values, labels_2)})
 
     res = res.groupby(["region", "range", "reason"]).agg(
         {"p53": "count"}).reset_index()
@@ -146,14 +148,15 @@ def plot_damage(df: pd.DataFrame, fig_location: str = None,
                        height=8,
                        aspect=1,
                        legend_out=True)
-    fg.map(sns.barplot, "range", "p53", "reason", palette="deep", )
+    fg.map(sns.barplot, "range", "p53", "reason",
+           palette="deep", order=labels_2, hue_order=labels_1)
     # Adjust subplots on the grid
     fg.set(yscale="log")
     fg.add_legend(title="Reason")
     fg.tight_layout(pad=5)
     for ax in fg.axes.flatten():
         ax.set_title(ax.get_title().split("= ")[-1])
-        ax.set_xlabel("Damage [hundreds Kc]")
+        ax.set_xlabel("Damage [thousands Kc]")
         ax.set_ylabel("Count")
         ax.yaxis.set_tick_params(which='both', labelleft=True)
 
@@ -219,6 +222,6 @@ def plot_surface(df: pd.DataFrame, fig_location: str = None,
 
 if __name__ == "__main__":
     df = get_dataframe("accidents.pkl.gz", True)
-    plot_conseq(df, fig_location="01_nasledky.png", show_figure=False)
-    plot_damage(df, "02_priciny.png", False)
-    plot_surface(df, "03_stav.png", True)
+    # plot_conseq(df, fig_location="01_nasledky.png", show_figure=False)
+    plot_damage(df, "02_priciny.png", True)
+    # plot_surface(df, "03_stav.png", True)
