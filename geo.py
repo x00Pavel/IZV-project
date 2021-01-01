@@ -69,14 +69,16 @@ def plot_cluster(gdf: gpd.GeoDataFrame, fig_location: str = None,
 
     gdf_coords = gpd.GeoDataFrame(geometry=gpd.points_from_xy(
         db.cluster_centers_[:, 0], db.cluster_centers_[:, 1]))
-    gdf5 = gdf4.merge(gdf_coords, left_on="cluster",
-                      right_index=True).set_geometry("geometry_y")
+    gdf5 = gdf4.merge(gdf_coords, left_on="cluster", right_index=True).\
+        set_geometry("geometry_y")
     plt.axis("off")
 
-    gdf.to_crs(epsg=3857).plot(
-        ax=ax, color="tab:grey", alpha=0.5, markersize=5)
-    gdf5.plot(ax=ax, markersize=gdf5["p1"],
-              column="p1", legend=True, alpha=0.5)
+    gdf.to_crs(epsg=3857).plot(ax=ax,
+                               color="tab:grey",
+                               alpha=0.5,
+                               markersize=5)
+    gdf5.plot(ax=ax, markersize=gdf5["p1"], column="p1",
+              legend=True, alpha=0.5)
 
     ctx.add_basemap(ax, crs="epsg:3857", source=ctx.providers.Stamen.TonerLite)
     if fig_location:
@@ -88,5 +90,5 @@ def plot_cluster(gdf: gpd.GeoDataFrame, fig_location: str = None,
 
 if __name__ == "__main__":
     gdf = make_geo(pd.read_pickle("accidents.pkl.gz"))
-    plot_geo(gdf, "geo1.png", True)
+    # plot_geo(gdf, "geo1.png", True)
     plot_cluster(gdf, "geo2.png", True)
